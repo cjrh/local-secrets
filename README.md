@@ -208,3 +208,7 @@ GOOGLE_APPLICATION_CREDENTIALS="$tmp_file" cargo test
 ```
 
 Or pass it to Docker as a BuildKit secret as shown above.
+
+## License
+
+`local-secrets` is licensed under the GNU General Public License version 3 or later (`GPL-3.0-or-later`). See [LICENSE](LICENSE) for the full license text.
