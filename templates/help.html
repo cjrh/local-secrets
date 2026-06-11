@@ -1,0 +1,29 @@
+<h2>Quick API: how do I use this?</h2>
+<p class="muted">local-secrets stores a flat set of <em>keys</em> under <code>~/.config/local-secrets/</code>. Each key is a self-contained namespace with its own env file and shared files. Switch the active key with the dropdown on the main page.</p>
+
+<h3>Docker run</h3>
+<pre>docker run --env-file &lt;(curl -fsS {{base}}/env-file) image</pre>
+
+<h3>Docker Compose</h3>
+<p class="muted">Keep Compose generic and pass local-secrets as a normal env-file path.</p>
+<pre>services:
+  app:
+    image: your-image:dev
+    env_file:
+      - ${DEV_ENV_FILE:?set DEV_ENV_FILE}</pre>
+<pre>DEV_ENV_FILE=&lt;(curl -fsS {{base}}/env-file) docker compose up</pre>
+<p class="muted">Fish shell:</p>
+<pre>env DEV_ENV_FILE=(curl -fsS {{base}}/env-file | psub) docker compose up</pre>
+
+<h3>POSIX shell (bash/zsh/sh)</h3>
+<pre>eval "$(curl -fsS {{base}}/export)"</pre>
+
+<h3>Fish shell</h3>
+<pre>curl -fsS {{base}}/export/fish | source</pre>
+
+<h3>JSON</h3>
+<pre>curl -fsS {{base}}/env</pre>
+
+<h3>Shared local files</h3>
+<pre>curl --data-binary @.npmrc -X PUT {{base}}/files/.npmrc
+curl -fsS {{base}}/files/.npmrc</pre>

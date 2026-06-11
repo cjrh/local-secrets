@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>local-secrets · {{active_key}}</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, sans-serif;
+      --ink: #17202a;
+      --muted: #5f6977;
+      --card-bg: rgba(255, 255, 255, .64);
+      --card-border: rgba(97, 111, 133, .26);
+      --field-bg: rgba(255, 255, 255, .74);
+      --field-border: rgba(61, 74, 95, .32);
+    }
+    html { min-height: 100%; scrollbar-gutter: stable both-edges; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 2rem;
+      line-height: 1.5;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 14%, rgba(255, 255, 25, .96) 0, rgba(255, 255, 255, 0) 28rem),
+        radial-gradient(circle at 84% 8%, rgba(199, 23, 255, .72) 0, rgba(199, 239, 255, 0) 26rem),
+        radial-gradient(circle at 12% 92%, rgba(255, 22, 239, .62) 0, rgba(255, 222, 239, 0) 30rem),
+        radial-gradient(circle at 86% 88%, rgba(22, 255, 235, .62) 0, rgba(224, 255, 235, 0) 28rem),
+        linear-gradient(115deg, #fffaf6 0%, #f7fbff 28%, #fbf6ff 58%, #f5fff8 100%);
+      background-size: 160% 160%, 180% 180%, 170% 170%, 165% 165%, 220% 220%;
+      background-position: 0% 0%, 100% 0%, 0% 100%, 100% 100%, 0% 50%;
+      animation: pearl-drift 2s ease-in-out infinite alternate;
+    }
+    @keyframes pearl-drift {
+      0% { background-position: 0% 0%, 100% 0%, 0% 100%, 100% 100%, 0% 50%; }
+      50% { background-position: 16% 10%, 82% 18%, 10% 84%, 88% 76%, 54% 48%; }
+      100% { background-position: 6% 22%, 76% 8%, 18% 76%, 74% 88%, 100% 50%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      body { animation: none; }
+    }
+    textarea, input[type="text"] {
+      box-sizing: border-box;
+      width: 100%;
+      color: inherit;
+      background: var(--field-bg);
+      border: 1px solid var(--field-border);
+      border-radius: .45rem;
+      font: 1rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    textarea { min-height: 18rem; padding: .75rem; }
+    textarea.file-contents { min-height: 5.5rem; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    pre { box-sizing: border-box; max-width: 100%; min-width: 0; overflow-x: auto; padding: 1rem; background: rgba(255, 255, 255, .54); border: 1px solid var(--field-border); border-radius: .5rem; }
+    button { padding: .55rem .9rem; font-weight: 650; }
+    section { margin-block: 2rem; }
+    .page-shell { width: 100%; margin-inline: 0; }
+    .muted { color: var(--muted); }
+    .inline { display: inline; margin-inline-start: .5rem; }
+    .card {
+      box-sizing: border-box;
+      min-width: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: .9rem;
+      box-shadow: 0 24px 80px rgba(80, 72, 105, .12);
+      padding: 1rem;
+      backdrop-filter: blur(14px) saturate(1.2);
+    }
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .header h1 { margin: 0; }
+    .header .grow { flex: 1 1 auto; }
+    .header .key-select {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .header .key-select select { min-width: 12rem; }
+    .key-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: end;
+      margin-bottom: 1.5rem;
+    }
+    .key-toolbar form {
+      display: flex;
+      gap: .5rem;
+      align-items: end;
+      flex-wrap: wrap;
+    }
+    .key-toolbar label { font-size: .8rem; color: var(--muted); display: block; margin-bottom: .25rem; }
+    .key-toolbar input[type="text"] { min-width: 12rem; }
+    .tabs {
+      display: flex;
+      gap: .25rem;
+      border-bottom: 1px solid var(--field-border);
+      margin-bottom: 1rem;
+    }
+    .tab {
+      border: 0;
+      background: transparent;
+      padding: .65rem 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+    }
+    .tab[aria-selected="true"] {
+      color: var(--ink);
+      border-bottom-color: var(--ink);
+    }
+    .tab-panel[hidden] { display: none; }
+
+    /* modal */
+    .modal[hidden] { display: none; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+    }
+    .modal .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(20, 25, 35, .45);
+      backdrop-filter: blur(2px);
+    }
+    .modal .modal-content {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      max-width: 80vw;
+      max-height: 85vh;
+      overflow: auto;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: .9rem;
+      box-shadow: 0 32px 100px rgba(20, 25, 35, .35);
+      padding: 1.25rem 1.5rem;
+      backdrop-filter: blur(20px) saturate(1.2);
+    }
+    .modal h2 { margin-top: 0; }
+    .modal h3 { margin-bottom: .35rem; }
+    .modal .modal-close {
+      position: absolute;
+      top: .65rem;
+      right: .9rem;
+      border: 0;
+      background: transparent;
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--muted);
+    }
+    .help-button {
+      border: 1px solid var(--field-border);
+      background: var(--field-bg);
+      border-radius: .45rem;
+      padding: .45rem .9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="header">
+      <h1>local-secrets</h1>
+      <span class="muted">A local-only secret and shared-file server for development across multiple git worktrees.</span>
+      <span class="grow"></span>
+      <button class="help-button" id="help-button" type="button">Help</button>
+    </header>
+
+    <div class="card key-toolbar">
+      <div class="key-select">
+        <label for="key-selector">Active key</label>
+        <select id="key-selector">
+          {{key_options}}
+        </select>
+      </div>
+      <form method="post" action="/ui/keys">
+        <div>
+          <label for="new-key-name">New key</label>
+          <input id="new-key-name" type="text" name="name" placeholder="my-service" required>
+        </div>
+        <button type="submit">+ Create</button>
+      </form>
+      <form method="post" action="/ui/keys/{{active_key}}/rename">
+        <div>
+          <label for="rename-key-name">Rename <code>{{active_key}}</code></label>
+          <input id="rename-key-name" type="text" name="new_name" value="{{active_key}}" required>
+        </div>
+        <button type="submit">Rename</button>
+      </form>
+      <form method="post" action="/ui/keys/{{active_key}}/delete" onsubmit="return confirm('Delete key `{{active_key}}`? This removes its env file and shared files.');">
+        <div>
+          <label>Delete this key</label>
+          <button type="submit" class="danger">Delete</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-env" aria-selected="true" data-tab="env" type="button">Environment variables</button>
+        <button class="tab" role="tab" id="tab-files" aria-selected="false" data-tab="files" type="button">Shared local files</button>
+      </div>
+
+      <section class="tab-panel" role="tabpanel" aria-labelledby="tab-env" data-tab="env">
+        <p>One variable per line: <code>ENV_VAR_NAME=value</code>. The backing file is kept at <code>{{env_path}}</code> with chmod 600; the storage directory is <code>{{root_path}}</code>.</p>
+        <form method="post" action="/ui/keys/{{active_key}}/env">
+          <textarea name="env_file" spellcheck="false" aria-label="Environment file contents">{{env_file}}</textarea>
+          <p><button type="submit">Save env vars</button></p>
+        </form>
+      </section>
+
+      <section class="tab-panel" role="tabpanel" aria-labelledby="tab-files" data-tab="files" hidden>
+        <p>Optional: store local untracked files once and fetch them from any worktree. File names may contain letters, numbers, dots, dashes, and underscores.</p>
+        {{files_html}}
+        <form method="post" action="/ui/keys/{{active_key}}/files">
+          <p><label>File name <input type="text" name="name" placeholder=".npmrc" required></label></p>
+          <p><label>Contents <textarea class="file-contents" name="contents" spellcheck="false"></textarea></label></p>
+          <p><button type="submit">Save shared file</button></p>
+        </form>
+        <details>
+          <summary>Upload or replace a file with curl</summary>
+          <pre>curl --data-binary @.npmrc -X PUT {{base}}/api/keys/{{active_key}}/files/.npmrc</pre>
+        </details>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal" id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title" hidden>
+    <div class="modal-overlay" data-close="1"></div>
+    <div class="modal-content">
+      <button class="modal-close" type="button" data-close="1" aria-label="Close help">×</button>
+      <div id="help-modal-body" data-src="/help?key={{active_key}}">Loading…</div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      // --- tab switching ----------------------------------------------------
+      const tabs = document.querySelectorAll('[role="tab"]');
+      const panels = document.querySelectorAll('[role="tabpanel"]');
+      const STORAGE_KEY = 'local-secrets.active-tab';
+
+      function activate(tabName) {
+        tabs.forEach(function (t) {
+          t.setAttribute('aria-selected', t.dataset.tab === tabName ? 'true' : 'false');
+        });
+        panels.forEach(function (p) {
+          p.hidden = p.dataset.tab !== tabName;
+        });
+        try { localStorage.setItem(STORAGE_KEY, tabName); } catch (e) { /* ignore */ }
+      }
+
+      tabs.forEach(function (t) {
+        t.addEventListener('click', function () { activate(t.dataset.tab); });
+      });
+
+      let initial = 'env';
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved === 'env' || saved === 'files') initial = saved;
+      } catch (e) { /* ignore */ }
+      activate(initial);
+
+      // --- key selector -----------------------------------------------------
+      const selector = document.getElementById('key-selector');
+      if (selector) {
+        selector.addEventListener('change', function () {
+          window.location.href = '/keys/' + encodeURIComponent(selector.value);
+        });
+      }
+
+      // --- help modal -------------------------------------------------------
+      const modal = document.getElementById('help-modal');
+      const body = document.getElementById('help-modal-body');
+      const helpButton = document.getElementById('help-button');
+      let lastFocus = null;
+
+      function openModal() {
+        if (!modal || !body) return;
+        lastFocus = document.activeElement;
+        modal.hidden = false;
+        // load help content lazily, using the active key from the URL
+        const key = (window.location.pathname.match(/^\/keys\/([^/]+)/) || [])[1] || 'default';
+        const url = '/help?key=' + encodeURIComponent(key);
+        if (body.getAttribute('data-src') !== url || body.textContent === 'Loading…') {
+          body.setAttribute('data-src', url);
+          body.textContent = 'Loading…';
+          fetch(url, { headers: { 'Accept': 'text/html' } })
+            .then(function (r) { return r.ok ? r.text() : '<p>Failed to load help.</p>'; })
+            .then(function (html) { body.innerHTML = html; })
+            .catch(function () { body.textContent = 'Failed to load help.'; });
+        }
+        const closeBtn = modal.querySelector('.modal-close');
+        if (closeBtn) closeBtn.focus();
+      }
+
+      function closeModal() {
+        if (!modal) return;
+        modal.hidden = true;
+        if (lastFocus && lastFocus.focus) lastFocus.focus();
+      }
+
+      if (helpButton) helpButton.addEventListener('click', openModal);
+      if (modal) {
+        modal.addEventListener('click', function (e) {
+          if (e.target && e.target.getAttribute && e.target.getAttribute('data-close') === '1') {
+            closeModal();
+          }
+        });
+      }
+      document.addEventListener('keydown', function (e) {
+        if (!modal || modal.hidden) return;
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeModal();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
