@@ -4,6 +4,8 @@
 
 It removes the need for per-worktree files such as `.env.local`, `.npmrc`, or service-account JSON files in the repository directory. The server stores them once under your user config directory, grouped by key, and exposes them over `127.0.0.1` for local development workflows.
 
+![local-secrets app screenshot](docs/assets/local-secrets-screenshot.png)
+
 A `default` key is created on first start. Use the dropdown in the UI to switch between keys, and the create/rename/delete forms to manage them.
 
 There is intentionally no authentication. Run it only on a machine you control, and keep it bound to loopback unless you understand the risk.
