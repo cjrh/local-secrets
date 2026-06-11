@@ -37,6 +37,7 @@
       --bg-green: rgba(185, 255, 218, .32);
       --bg-violet: rgba(185, 168, 255, .26);
       --bg-soft: rgba(255, 255, 255, .62);
+      --scrollbar-thumb: rgba(97, 111, 133, .36);
     }
     :root[data-theme="dark"] {
       color-scheme: dark;
@@ -56,10 +57,10 @@
       --bg-green: rgba(50, 207, 151, .18);
       --bg-violet: rgba(113, 88, 234, .26);
       --bg-soft: rgba(154, 201, 255, .08);
+      --scrollbar-thumb: rgba(170, 194, 225, .32);
     }
     html {
       min-height: 100%;
-      scrollbar-gutter: stable both-edges;
       background-color: var(--bg-base);
       background-image:
         radial-gradient(ellipse at 12% 14%, var(--bg-soft) 0 16rem, transparent 34rem),
@@ -72,6 +73,15 @@
         var(--bg-wash);
       background-attachment: fixed;
       background-repeat: no-repeat;
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+    html::-webkit-scrollbar { width: 12px; }
+    html::-webkit-scrollbar-track { background: transparent; }
+    html::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-thumb);
+      border: 3px solid transparent;
+      border-radius: 999px;
+      background-clip: content-box;
     }
     body {
       margin: 0;
