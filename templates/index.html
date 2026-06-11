@@ -4,43 +4,84 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>local-secrets · {{active_key}}</title>
+  <script>
+    (function () {
+      try {
+        const saved = localStorage.getItem('local-secrets.theme');
+        const theme = (saved === 'light' || saved === 'dark')
+          ? saved
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
   <style>
     :root {
       color-scheme: light;
       font-family: system-ui, sans-serif;
       --ink: #17202a;
       --muted: #5f6977;
+      --page-bg: #fbfdff;
       --card-bg: rgba(255, 255, 255, .64);
       --card-border: rgba(97, 111, 133, .26);
       --field-bg: rgba(255, 255, 255, .74);
       --field-border: rgba(61, 74, 95, .32);
+      --shadow: rgba(80, 72, 105, .12);
+      --modal-overlay: rgba(20, 25, 35, .45);
+      --bg-base: #fbfdff;
+      --bg-wash: linear-gradient(135deg, rgba(255, 250, 247, .96), rgba(244, 251, 255, .92) 38%, rgba(251, 246, 255, .90) 68%, rgba(245, 255, 248, .94));
+      --bg-cyan: rgba(127, 211, 255, .42);
+      --bg-pink: rgba(249, 184, 225, .34);
+      --bg-green: rgba(185, 255, 218, .32);
+      --bg-violet: rgba(185, 168, 255, .26);
+      --bg-soft: rgba(255, 255, 255, .62);
     }
-    html { min-height: 100%; scrollbar-gutter: stable both-edges; }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --ink: #edf5ff;
+      --muted: #acb8c7;
+      --page-bg: #07111f;
+      --card-bg: rgba(10, 18, 32, .68);
+      --card-border: rgba(160, 183, 215, .24);
+      --field-bg: rgba(8, 14, 24, .70);
+      --field-border: rgba(170, 194, 225, .28);
+      --shadow: rgba(0, 0, 0, .32);
+      --modal-overlay: rgba(2, 6, 12, .62);
+      --bg-base: #07111f;
+      --bg-wash: linear-gradient(135deg, rgba(8, 17, 31, .98), rgba(13, 26, 43, .96) 38%, rgba(17, 18, 38, .95) 68%, rgba(7, 27, 24, .96));
+      --bg-cyan: rgba(44, 189, 230, .28);
+      --bg-pink: rgba(196, 78, 163, .20);
+      --bg-green: rgba(50, 207, 151, .18);
+      --bg-violet: rgba(113, 88, 234, .26);
+      --bg-soft: rgba(154, 201, 255, .08);
+    }
+    html {
+      min-height: 100%;
+      scrollbar-gutter: stable both-edges;
+      background-color: var(--bg-base);
+      background-image:
+        radial-gradient(ellipse at 12% 14%, var(--bg-soft) 0 16rem, transparent 34rem),
+        radial-gradient(ellipse at 82% 10%, var(--bg-cyan) 0 18rem, transparent 40rem),
+        radial-gradient(ellipse at 18% 92%, var(--bg-pink) 0 20rem, transparent 44rem),
+        radial-gradient(ellipse at 84% 82%, var(--bg-green) 0 19rem, transparent 42rem),
+        radial-gradient(ellipse at 50% 105%, var(--bg-violet) 0 24rem, transparent 50rem),
+        linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, .12) 24%, transparent 46%),
+        linear-gradient(28deg, transparent 44%, rgba(255, 255, 255, .10) 64%, transparent 84%),
+        var(--bg-wash);
+      background-attachment: fixed;
+      background-repeat: no-repeat;
+    }
     body {
       margin: 0;
       min-height: 100vh;
       padding: 2rem;
       line-height: 1.5;
       color: var(--ink);
-      background:
-        radial-gradient(circle at 8% 14%, rgba(255, 255, 25, .96) 0, rgba(255, 255, 255, 0) 28rem),
-        radial-gradient(circle at 84% 8%, rgba(199, 23, 255, .72) 0, rgba(199, 239, 255, 0) 26rem),
-        radial-gradient(circle at 12% 92%, rgba(255, 22, 239, .62) 0, rgba(255, 222, 239, 0) 30rem),
-        radial-gradient(circle at 86% 88%, rgba(22, 255, 235, .62) 0, rgba(224, 255, 235, 0) 28rem),
-        linear-gradient(115deg, #fffaf6 0%, #f7fbff 28%, #fbf6ff 58%, #f5fff8 100%);
-      background-size: 160% 160%, 180% 180%, 170% 170%, 165% 165%, 220% 220%;
-      background-position: 0% 0%, 100% 0%, 0% 100%, 100% 100%, 0% 50%;
-      animation: pearl-drift 2s ease-in-out infinite alternate;
+      background: transparent;
     }
-    @keyframes pearl-drift {
-      0% { background-position: 0% 0%, 100% 0%, 0% 100%, 100% 100%, 0% 50%; }
-      50% { background-position: 16% 10%, 82% 18%, 10% 84%, 88% 76%, 54% 48%; }
-      100% { background-position: 6% 22%, 76% 8%, 18% 76%, 74% 88%, 100% 50%; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      body { animation: none; }
-    }
-    textarea, input[type="text"] {
+    textarea, input[type="text"], select {
       box-sizing: border-box;
       width: 100%;
       color: inherit;
@@ -52,8 +93,8 @@
     textarea { min-height: 18rem; padding: .75rem; }
     textarea.file-contents { min-height: 5.5rem; }
     code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    pre { box-sizing: border-box; max-width: 100%; min-width: 0; overflow-x: auto; padding: 1rem; background: rgba(255, 255, 255, .54); border: 1px solid var(--field-border); border-radius: .5rem; }
-    button { padding: .55rem .9rem; font-weight: 650; }
+    pre { box-sizing: border-box; max-width: 100%; min-width: 0; overflow-x: auto; padding: 1rem; background: var(--field-bg); border: 1px solid var(--field-border); border-radius: .5rem; }
+    button { padding: .55rem .9rem; font-weight: 650; color: inherit; background: var(--field-bg); border: 1px solid var(--field-border); border-radius: .45rem; }
     section { margin-block: 2rem; }
     .page-shell { width: 100%; margin-inline: 0; }
     .muted { color: var(--muted); }
@@ -64,7 +105,7 @@
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: .9rem;
-      box-shadow: 0 24px 80px rgba(80, 72, 105, .12);
+      box-shadow: 0 24px 80px var(--shadow);
       padding: 1rem;
       backdrop-filter: blur(14px) saturate(1.2);
     }
@@ -129,7 +170,7 @@
     .modal .modal-overlay {
       position: absolute;
       inset: 0;
-      background: rgba(20, 25, 35, .45);
+      background: var(--modal-overlay);
       backdrop-filter: blur(2px);
     }
     .modal .modal-content {
@@ -144,7 +185,7 @@
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: .9rem;
-      box-shadow: 0 32px 100px rgba(20, 25, 35, .35);
+      box-shadow: 0 32px 100px var(--shadow);
       padding: 1.25rem 1.5rem;
       backdrop-filter: blur(20px) saturate(1.2);
     }
@@ -161,7 +202,8 @@
       cursor: pointer;
       color: var(--muted);
     }
-    .help-button {
+    .header-actions { display: flex; gap: .5rem; align-items: center; }
+    .help-button, .theme-toggle {
       border: 1px solid var(--field-border);
       background: var(--field-bg);
       border-radius: .45rem;
@@ -177,7 +219,10 @@
       <h1>local-secrets</h1>
       <span class="muted">A local-only secret and shared-file server for development across multiple git worktrees.</span>
       <span class="grow"></span>
-      <button class="help-button" id="help-button" type="button">Help</button>
+      <span class="header-actions">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="false">Dark mode</button>
+        <button class="help-button" id="help-button" type="button">Help</button>
+      </span>
     </header>
 
     <div class="card key-toolbar">
@@ -249,6 +294,51 @@
 
   <script>
     (function () {
+      // --- color theme ------------------------------------------------------
+      const THEME_STORAGE_KEY = 'local-secrets.theme';
+      const themeToggle = document.getElementById('theme-toggle');
+      const systemDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+      function detectTheme() {
+        try {
+          const saved = localStorage.getItem(THEME_STORAGE_KEY);
+          if (saved === 'light' || saved === 'dark') return saved;
+        } catch (e) { /* ignore */ }
+        return systemDark && systemDark.matches ? 'dark' : 'light';
+      }
+
+      function applyTheme(theme, persist) {
+        document.documentElement.dataset.theme = theme;
+        if (themeToggle) {
+          const next = theme === 'dark' ? 'Light mode' : 'Dark mode';
+          themeToggle.textContent = next;
+          themeToggle.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+          themeToggle.setAttribute('aria-label', 'Switch to ' + next.toLowerCase());
+        }
+        if (persist) {
+          try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) { /* ignore */ }
+        }
+      }
+
+      applyTheme(detectTheme(), false);
+
+      if (themeToggle) {
+        themeToggle.addEventListener('click', function () {
+          const current = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+          applyTheme(current === 'dark' ? 'light' : 'dark', true);
+        });
+      }
+
+      if (systemDark && systemDark.addEventListener) {
+        systemDark.addEventListener('change', function () {
+          try {
+            const saved = localStorage.getItem(THEME_STORAGE_KEY);
+            if (saved === 'light' || saved === 'dark') return;
+          } catch (e) { /* ignore */ }
+          applyTheme(detectTheme(), false);
+        });
+      }
+
       // --- tab switching ----------------------------------------------------
       const tabs = document.querySelectorAll('[role="tab"]');
       const panels = document.querySelectorAll('[role="tabpanel"]');
