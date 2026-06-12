@@ -128,6 +128,7 @@ fn app(state: AppState) -> Router {
         .route("/ui/keys/{name}/rename", post(rename_key_form))
         .route("/ui/keys/{name}/delete", post(delete_key_form))
         .route("/ui/keys/{name}/env", post(save_env_from_form))
+        .route("/ui/keys/{name}/env/raw", get(get_raw_env_for_ui))
         .route("/ui/keys/{name}/files", post(save_file_from_form))
         .route("/ui/keys/{name}/files/delete", post(delete_file_from_form))
         // API: keys
@@ -309,6 +310,21 @@ async fn save_env_from_form(
     let contents = form.get("env_file").cloned().unwrap_or_default();
     state.store.write_env_file(&name, &contents).await?;
     Ok(redirect_to_key(&name))
+}
+
+async fn get_raw_env_for_ui(
+    State(state): State<AppState>,
+    Path(name): Path<String>,
+) -> Result<Response, AppError> {
+    let env_file = state.store.read_env_file(&name).await?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "text/plain; charset=utf-8"),
+            (header::CACHE_CONTROL, "no-store"),
+        ],
+        env_file,
+    )
+        .into_response())
 }
 
 async fn get_shell_exports(
@@ -495,7 +511,7 @@ fn render_index(
     );
     let root_path = html_escape(&state.store.paths().root.display().to_string());
     let active = html_escape(active_key);
-    let env_file = html_escape(env_file);
+    let env_file = html_escape(&envfile::obfuscate_values(env_file));
 
     INDEX_TEMPLATE
         .replace("{{base}}", &base)
@@ -531,6 +547,37 @@ mod tests {
     #[test]
     fn escapes_html_metacharacters() {
         assert_eq!(html_escape("<&>\"'"), "&lt;&amp;&gt;&quot;&#39;");
+    }
+
+    #[test]
+    fn render_index_obfuscates_env_values() {
+        let root = std::env::temp_dir().join(format!(
+            "local-secrets-render-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = Store::open(root.clone()).unwrap();
+        let state = AppState {
+            store,
+            public_base_url: "http://127.0.0.1:37997".to_string(),
+        };
+
+        let html = render_index(
+            &state,
+            DEFAULT_KEY,
+            "SECRET=super-secret\nEMPTY=\n",
+            &[],
+            &[DEFAULT_KEY.to_string()],
+        );
+
+        assert!(html.contains("SECRET=••••••••"));
+        assert!(html.contains("EMPTY="));
+        assert!(!html.contains("super-secret"));
+
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]

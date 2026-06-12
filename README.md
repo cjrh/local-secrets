@@ -99,7 +99,9 @@ local-secrets --bind 127.0.0.1:37997 --data-dir ~/.config/local-secrets
 
 ## Configure secrets
 
-Open the UI, pick a key from the dropdown, and enter values in dotenv-compatible `NAME=value` form:
+Open the UI, pick a key from the dropdown, and click **Unlock** before editing. Secret values are hidden while locked to reduce accidental disclosure during screen sharing; the editor automatically locks again 30 seconds after the last edit.
+
+Enter values in dotenv-compatible `NAME=value` form:
 
 ```env
 DATABASE_URL=postgres://localhost/my-app

@@ -74,6 +74,30 @@ pub fn to_fish_exports(variables: &BTreeMap<String, String>) -> String {
     script
 }
 
+/// Returns a display-safe env-file view that preserves keys and local notes but
+/// hides non-empty values behind a fixed mask.
+///
+/// The editable source remains on disk unchanged; this view exists only to
+/// reduce accidental disclosure in the browser when the UI is locked.
+pub fn obfuscate_values(contents: &str) -> String {
+    let mut obfuscated = String::with_capacity(contents.len());
+
+    for segment in contents.split_inclusive('\n') {
+        let (line, ending) = segment
+            .strip_suffix("\r\n")
+            .map(|line| (line, "\r\n"))
+            .or_else(|| segment.strip_suffix('\n').map(|line| (line, "\n")))
+            .unwrap_or((segment, ""));
+
+        push_obfuscated_line(line, &mut obfuscated);
+        obfuscated.push_str(ending);
+    }
+
+    obfuscated
+}
+
+const OBFUSCATED_VALUE: &str = "••••••••";
+
 struct EnvRecord<'a> {
     name: &'a str,
     value: &'a str,
@@ -123,6 +147,26 @@ pub fn is_valid_env_name(name: &str) -> bool {
     }
 
     chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
+}
+
+fn push_obfuscated_line(line: &str, output: &mut String) {
+    let trimmed = line.trim_start();
+
+    if trimmed.is_empty() || trimmed.starts_with('#') {
+        output.push_str(line);
+        return;
+    }
+
+    let Some((name, value)) = line.split_once('=') else {
+        output.push_str(line);
+        return;
+    };
+
+    output.push_str(name);
+    output.push('=');
+    if !value.is_empty() {
+        output.push_str(OBFUSCATED_VALUE);
+    }
 }
 
 fn shell_quote(value: &str) -> String {
@@ -206,6 +250,18 @@ TOKEN=abc#not-a-comment
         assert!(errors[0].contains("1BAD"));
         assert!(errors[1].contains("HAS SPACE"));
         assert!(errors[2].contains("separator"));
+    }
+
+    #[test]
+    fn obfuscates_values_without_revealing_lengths() {
+        let obfuscated = obfuscate_values(
+            "# local note\nDATABASE_URL=postgres://localhost/app\r\nEMPTY=\nMISSING_EQUALS\nTOKEN=short\n",
+        );
+
+        assert_eq!(
+            obfuscated,
+            "# local note\nDATABASE_URL=••••••••\r\nEMPTY=\nMISSING_EQUALS\nTOKEN=••••••••\n"
+        );
     }
 
     #[test]

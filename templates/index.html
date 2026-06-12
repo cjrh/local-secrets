@@ -16,6 +16,11 @@
       } catch (e) {
         document.documentElement.dataset.theme = 'light';
       }
+      try {
+        if (localStorage.getItem('local-secrets.browser-extension-warning-dismissed') === '1') {
+          document.documentElement.dataset.extensionWarning = 'dismissed';
+        }
+      } catch (e) { /* ignore */ }
     })();
   </script>
   <style>
@@ -85,6 +90,7 @@
       background-clip: content-box;
     }
     body {
+      box-sizing: border-box;
       margin: 0;
       min-height: 100vh;
       padding: 2rem;
@@ -102,12 +108,19 @@
       font: 1rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     textarea { min-height: 18rem; padding: .75rem; }
+    textarea[readonly] { cursor: default; }
     textarea.file-contents { min-height: 5.5rem; }
     code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     pre { box-sizing: border-box; max-width: 100%; min-width: 0; overflow-x: auto; padding: 1rem; background: var(--field-bg); border: 1px solid var(--field-border); border-radius: .5rem; }
     button { padding: .55rem .9rem; font-weight: 650; color: inherit; background: var(--field-bg); border: 1px solid var(--field-border); border-radius: .45rem; }
     section { margin-block: 2rem; }
-    .page-shell { width: 100%; margin-inline: 0; }
+    .page-shell {
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100vh - 4rem);
+      width: 100%;
+      margin-inline: 0;
+    }
     .muted { color: var(--muted); }
     .inline { display: inline; margin-inline-start: .5rem; }
     .card {
@@ -169,7 +182,45 @@
       color: var(--ink);
       border-bottom-color: var(--ink);
     }
-    .tab-panel[hidden] { display: none; }
+    .workspace-card {
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .tab-panel[hidden] { display: none !important; }
+    .tab-panel[data-tab="env"] {
+      flex: 1 1 auto;
+      flex-direction: column;
+      min-height: 0;
+      margin-block: 0;
+    }
+    .tab-panel[data-tab="env"]:not([hidden]) { display: flex; }
+    .tab-panel[data-tab="env"] > p { flex: 0 0 auto; }
+    #env-form {
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      min-height: 0;
+    }
+    #env-file-editor {
+      flex: 1 1 auto;
+      min-height: 18rem;
+      overflow: auto;
+    }
+    .env-editor-actions {
+      display: flex;
+      justify-content: flex-start;
+      margin-top: .75rem;
+    }
+    .env-editor-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .75rem;
+      margin: .75rem 0;
+    }
+    .env-lock-status { font-size: .9rem; }
 
     /* modal */
     .modal[hidden] { display: none; }
@@ -214,6 +265,29 @@
       color: var(--muted);
     }
     .header-actions { display: flex; gap: .5rem; align-items: center; }
+    :root[data-extension-warning="dismissed"] .security-warning { display: none; }
+    .security-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      border-color: rgba(220, 38, 38, .68);
+      background: linear-gradient(135deg, rgba(254, 226, 226, .82), var(--card-bg));
+    }
+    :root[data-theme="dark"] .security-warning {
+      background: linear-gradient(135deg, rgba(127, 29, 29, .42), var(--card-bg));
+    }
+    .security-warning-content { flex: 1 1 auto; min-width: 0; }
+    .security-warning strong { display: block; margin-bottom: .25rem; color: #b91c1c; }
+    :root[data-theme="dark"] .security-warning strong { color: #fca5a5; }
+    .security-warning p { margin: 0; }
+    .security-warning-dismiss {
+      flex: 0 0 auto;
+      border-color: rgba(220, 38, 38, .55);
+      background: rgba(254, 226, 226, .72);
+      white-space: nowrap;
+    }
+    :root[data-theme="dark"] .security-warning-dismiss { background: rgba(127, 29, 29, .36); }
     .help-button, .theme-toggle {
       border: 1px solid var(--field-border);
       background: var(--field-bg);
@@ -235,6 +309,14 @@
         <button class="help-button" id="help-button" type="button">Help</button>
       </span>
     </header>
+
+    <div class="card security-warning" id="browser-extension-warning" role="note" aria-label="Browser extension security warning">
+      <div class="security-warning-content">
+        <strong>Browser extension warning</strong>
+        <p>Browser extensions can read anything loaded into a browser tab, including local-secrets values while they are unlocked. Only use trusted browser extensions, and remember this is not unique to local-secrets: it applies to every webpage you ever visit.</p>
+      </div>
+      <button class="security-warning-dismiss" id="browser-extension-warning-dismiss" type="button">I understand, dismiss</button>
+    </div>
 
     <div class="card key-toolbar">
       <div class="key-select">
@@ -265,7 +347,7 @@
       </form>
     </div>
 
-    <div class="card">
+    <div class="card workspace-card">
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" id="tab-env" aria-selected="true" data-tab="env" type="button">Environment variables</button>
         <button class="tab" role="tab" id="tab-files" aria-selected="false" data-tab="files" type="button">Shared local files</button>
@@ -273,9 +355,15 @@
 
       <section class="tab-panel" role="tabpanel" aria-labelledby="tab-env" data-tab="env">
         <p>One variable per line: <code>ENV_VAR_NAME=value</code>. The backing file is kept at <code>{{env_path}}</code> with chmod 600; the storage directory is <code>{{root_path}}</code>.</p>
-        <form method="post" action="/ui/keys/{{active_key}}/env">
-          <textarea name="env_file" spellcheck="false" aria-label="Environment file contents">{{env_file}}</textarea>
-          <p><button type="submit">Save env vars</button></p>
+        <form method="post" action="/ui/keys/{{active_key}}/env" id="env-form">
+          <div class="env-editor-toolbar">
+            <button type="button" id="env-lock-toggle" aria-pressed="false" aria-label="Unlock environment variables">🔒 Unlock</button>
+            <span class="muted env-lock-status" id="env-lock-status">Values hidden. Unlock to edit; it auto-locks after 30 seconds of inactivity.</span>
+          </div>
+          <textarea id="env-file-editor" name="env_file" spellcheck="false" aria-label="Environment file contents" data-source="/ui/keys/{{active_key}}/env/raw" readonly>{{env_file}}</textarea>
+          <div class="env-editor-actions">
+            <button type="submit" id="env-save-button" disabled>Save env vars</button>
+          </div>
         </form>
       </section>
 
@@ -307,6 +395,7 @@
     (function () {
       // --- color theme ------------------------------------------------------
       const THEME_STORAGE_KEY = 'local-secrets.theme';
+      const EXTENSION_WARNING_STORAGE_KEY = 'local-secrets.browser-extension-warning-dismissed';
       const themeToggle = document.getElementById('theme-toggle');
       const systemDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
@@ -350,6 +439,18 @@
         });
       }
 
+      // --- browser extension warning ---------------------------------------
+      const extensionWarning = document.getElementById('browser-extension-warning');
+      const extensionWarningDismiss = document.getElementById('browser-extension-warning-dismiss');
+
+      if (extensionWarningDismiss) {
+        extensionWarningDismiss.addEventListener('click', function () {
+          if (extensionWarning) extensionWarning.hidden = true;
+          document.documentElement.dataset.extensionWarning = 'dismissed';
+          try { localStorage.setItem(EXTENSION_WARNING_STORAGE_KEY, '1'); } catch (e) { /* ignore */ }
+        });
+      }
+
       // --- tab switching ----------------------------------------------------
       const tabs = document.querySelectorAll('[role="tab"]');
       const panels = document.querySelectorAll('[role="tabpanel"]');
@@ -383,6 +484,132 @@
           window.location.href = '/keys/' + encodeURIComponent(selector.value);
         });
       }
+
+      // --- env editor lock --------------------------------------------------
+      const envForm = document.getElementById('env-form');
+      const envEditor = document.getElementById('env-file-editor');
+      const envToggle = document.getElementById('env-lock-toggle');
+      const envSave = document.getElementById('env-save-button');
+      const envStatus = document.getElementById('env-lock-status');
+      const ENV_LOCK_TIMEOUT_MS = 30000;
+      const OBFUSCATED_VALUE = '••••••••';
+      let envClearValue = null;
+      let envLocked = true;
+      let envLockTimer = null;
+      let envSubmitting = false;
+
+      function obfuscateEnv(contents) {
+        return contents.split(/(\r\n|\n|\r)/).map(function (part, index) {
+          if (index % 2 === 1) return part;
+          const trimmed = part.replace(/^\s+/, '');
+          if (!trimmed || trimmed.charAt(0) === '#') return part;
+          const equals = part.indexOf('=');
+          if (equals === -1) return part;
+          return part.slice(0, equals + 1) + (part.length > equals + 1 ? OBFUSCATED_VALUE : '');
+        }).join('');
+      }
+
+      function setEnvStatus(message) {
+        if (envStatus) envStatus.textContent = message;
+      }
+
+      function clearEnvLockTimer() {
+        if (envLockTimer) {
+          window.clearTimeout(envLockTimer);
+          envLockTimer = null;
+        }
+      }
+
+      function scheduleEnvLock() {
+        clearEnvLockTimer();
+        envLockTimer = window.setTimeout(lockEnvEditor, ENV_LOCK_TIMEOUT_MS);
+      }
+
+      function lockEnvEditor() {
+        if (!envEditor || envLocked || envSubmitting) return;
+        envClearValue = envEditor.value;
+        envEditor.value = obfuscateEnv(envClearValue);
+        envEditor.readOnly = true;
+        envLocked = true;
+        clearEnvLockTimer();
+        if (envToggle) {
+          envToggle.textContent = '🔒 Unlock';
+          envToggle.setAttribute('aria-pressed', 'false');
+          envToggle.setAttribute('aria-label', 'Unlock environment variables');
+        }
+        if (envSave) envSave.disabled = true;
+        setEnvStatus('Values hidden. Unlock to edit; it auto-locks after 30 seconds of inactivity.');
+      }
+
+      function unlockEnvEditor() {
+        if (!envEditor || !envToggle || !envLocked) return;
+        const source = envEditor.getAttribute('data-source');
+        envToggle.disabled = true;
+        setEnvStatus('Unlocking…');
+
+        const load = envClearValue !== null
+          ? Promise.resolve(envClearValue)
+          : fetch(source, { headers: { 'Accept': 'text/plain' }, cache: 'no-store' })
+            .then(function (response) {
+              if (!response.ok) throw new Error('Failed to load env file');
+              return response.text();
+            });
+
+        load.then(function (contents) {
+          envClearValue = contents;
+          envEditor.value = contents;
+          envEditor.readOnly = false;
+          envLocked = false;
+          envToggle.textContent = '🔓 Lock';
+          envToggle.setAttribute('aria-pressed', 'true');
+          envToggle.setAttribute('aria-label', 'Lock environment variables');
+          if (envSave) envSave.disabled = false;
+          envEditor.focus();
+          scheduleEnvLock();
+          setEnvStatus('Unlocked. Values visible and editable; auto-locks 30 seconds after your last edit.');
+        }).catch(function () {
+          setEnvStatus('Could not unlock. Try again, or reload the page.');
+        }).finally(function () {
+          envToggle.disabled = false;
+        });
+      }
+
+      if (envToggle) {
+        envToggle.addEventListener('click', function () {
+          if (envLocked) {
+            unlockEnvEditor();
+          } else {
+            lockEnvEditor();
+          }
+        });
+      }
+
+      if (envEditor) {
+        envEditor.addEventListener('input', function () {
+          if (!envLocked) {
+            envClearValue = envEditor.value;
+            scheduleEnvLock();
+          }
+        });
+      }
+
+      if (envForm) {
+        envForm.addEventListener('submit', function (event) {
+          if (envLocked) {
+            event.preventDefault();
+            setEnvStatus('Unlock before saving so obfuscated values are never submitted.');
+          } else if (envEditor) {
+            envSubmitting = true;
+            envClearValue = envEditor.value;
+            clearEnvLockTimer();
+          }
+        });
+      }
+
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) lockEnvEditor();
+      });
+      window.addEventListener('pagehide', lockEnvEditor);
 
       // --- help modal -------------------------------------------------------
       const modal = document.getElementById('help-modal');
