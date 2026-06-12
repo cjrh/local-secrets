@@ -19,6 +19,14 @@ use tokio::net::TcpListener;
 const DEFAULT_BIND: &str = "127.0.0.1:37997";
 const INDEX_TEMPLATE: &str = include_str!("../templates/index.html");
 const HELP_TEMPLATE: &str = include_str!("../templates/help.html");
+const FAVICON_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#07111f"/>
+  <path d="M20 29v-7c0-7 5-12 12-12s12 5 12 12v7" fill="none" stroke="#7fd3ff" stroke-width="6" stroke-linecap="round"/>
+  <rect x="15" y="26" width="34" height="28" rx="8" fill="#f9b8e1"/>
+  <circle cx="32" cy="39" r="4" fill="#07111f"/>
+  <path d="M32 42v6" stroke="#07111f" stroke-width="4" stroke-linecap="round"/>
+</svg>
+"##;
 const MAX_BODY_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Debug, Parser)]
@@ -188,8 +196,14 @@ async fn help_modal(
     Ok(Html(HELP_TEMPLATE.replace("{{base}}", &html_escape(&base))))
 }
 
-async fn favicon() -> StatusCode {
-    StatusCode::NO_CONTENT
+async fn favicon() -> impl IntoResponse {
+    (
+        [
+            (header::CONTENT_TYPE, "image/svg+xml; charset=utf-8"),
+            (header::CACHE_CONTROL, "public, max-age=86400"),
+        ],
+        FAVICON_SVG,
+    )
 }
 
 // ----- API: keys -----------------------------------------------------------
@@ -517,5 +531,25 @@ mod tests {
     #[test]
     fn escapes_html_metacharacters() {
         assert_eq!(html_escape("<&>\"'"), "&lt;&amp;&gt;&quot;&#39;");
+    }
+
+    #[tokio::test]
+    async fn favicon_serves_embedded_svg() {
+        let response = favicon().await.into_response();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "image/svg+xml; charset=utf-8"
+        );
+        assert_eq!(
+            response.headers().get(header::CACHE_CONTROL).unwrap(),
+            "public, max-age=86400"
+        );
+
+        let body = axum::body::to_bytes(response.into_body(), FAVICON_SVG.len())
+            .await
+            .unwrap();
+        assert_eq!(body.as_ref(), FAVICON_SVG.as_bytes());
     }
 }

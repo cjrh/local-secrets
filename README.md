@@ -10,7 +10,47 @@ A `default` key is created on first start. Use the dropdown in the UI to switch 
 
 There is intentionally no authentication. Run it only on a machine you control, and keep it bound to loopback unless you understand the risk.
 
+## Install
+
+This project is not published to crates.io. Install from the GitHub repository or from the prebuilt GitHub Release assets.
+
+### Prebuilt binary with `cargo binstall`
+
+`cargo binstall` reads this repository's `Cargo.toml`, then downloads the matching archive from the GitHub Release for the current package version.
+
+```sh
+cargo install cargo-binstall
+cargo binstall --git https://github.com/cjrh/local-secrets.git local-secrets
+```
+
+Release archives are attached for:
+
+- `x86_64-unknown-linux-gnu`
+- `x86_64-pc-windows-msvc`
+- `x86_64-apple-darwin`
+- `aarch64-apple-darwin`
+
+### Build from source with `cargo install`
+
+Install the current default branch:
+
+```sh
+cargo install --locked --git https://github.com/cjrh/local-secrets.git local-secrets
+```
+
+Or install an exact release tag:
+
+```sh
+cargo install --locked --git https://github.com/cjrh/local-secrets.git --tag v0.1.0 local-secrets
+```
+
 ## Run
+
+```sh
+local-secrets
+```
+
+For local development from a checkout:
 
 ```sh
 cargo run
@@ -210,6 +250,30 @@ GOOGLE_APPLICATION_CREDENTIALS="$tmp_file" cargo test
 ```
 
 Or pass it to Docker as a BuildKit secret as shown above.
+
+## Releasing
+
+Releases are tag-driven and are not published to crates.io. A pushed `vX.Y.Z` tag starts the GitHub Actions release workflow, which builds Linux, Windows, and macOS archives and attaches them to a GitHub Release.
+
+Install `cargo-release` once:
+
+```sh
+cargo install cargo-release
+```
+
+Preview a release locally:
+
+```sh
+cargo release patch
+```
+
+Perform the release:
+
+```sh
+cargo release patch --execute
+```
+
+`cargo-release` bumps `Cargo.toml`/`Cargo.lock`, commits the version bump, creates a `vX.Y.Z` tag, and pushes the commit and tag. The tag push kicks off `.github/workflows/release.yml`.
 
 ## License
 
