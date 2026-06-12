@@ -41,7 +41,7 @@ cargo install --locked --git https://github.com/cjrh/local-secrets.git local-sec
 Or install an exact release tag:
 
 ```sh
-cargo install --locked --git https://github.com/cjrh/local-secrets.git --tag v0.2.0 local-secrets
+cargo install --locked --git https://github.com/cjrh/local-secrets.git --tag v0.3.0 local-secrets
 ```
 
 ## Run
