@@ -1,6 +1,6 @@
 [package]
 name = "local-secrets"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "A local-only secret and shared-file server for development across multiple git worktrees"
 repository = "https://github.com/cjrh/local-secrets"
